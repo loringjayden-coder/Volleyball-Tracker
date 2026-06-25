@@ -41,6 +41,18 @@ const emptyStats: StatEntry = {
   energy: ""
 };
 
+type PRRecord = {
+  id: string;
+  date: string;
+  exercise: string;
+  value: string;
+  unit: string;
+  note: string;
+};
+
+type WorkoutLogs = Record<string, string>;
+type WorkoutNotes = Record<string, string>;
+
 function makeDefaultEvents(): CalendarEvent[] {
   const start = new Date();
   const events: CalendarEvent[] = [];
@@ -99,12 +111,26 @@ export default function Home() {
   const [exerciseSearch, setExerciseSearch] = useState("");
   const [expandedExercises, setExpandedExercises] = useState<Record<string, boolean>>({});
 
+  const [workoutLogs, setWorkoutLogs] = useState<WorkoutLogs>({});
+  const [workoutNotes, setWorkoutNotes] = useState<WorkoutNotes>({});
+  const [prs, setPrs] = useState<PRRecord[]>([]);
+
+  const [prExercise, setPrExercise] = useState("");
+  const [prValue, setPrValue] = useState("");
+  const [prUnit, setPrUnit] = useState("lbs");
+  const [prNote, setPrNote] = useState("");
+
   useEffect(() => {
     setChecked(getStored("v15-checked", {}));
     setStats(getStored("v15-latest-stats", emptyStats));
     setHistory(getStored("v15-stats-history", []));
+
     const savedEvents = getStored<CalendarEvent[]>("v15-calendar", []);
     setCalendarEvents(savedEvents.length ? savedEvents : makeDefaultEvents());
+
+    setWorkoutLogs(getStored("v166-workout-logs", {}));
+    setWorkoutNotes(getStored("v166-workout-notes", {}));
+    setPrs(getStored("v166-prs", []));
   }, []);
 
   useEffect(() => {
@@ -114,6 +140,18 @@ export default function Home() {
   useEffect(() => {
     setStored("v15-calendar", calendarEvents);
   }, [calendarEvents]);
+
+  useEffect(() => {
+    setStored("v166-workout-logs", workoutLogs);
+  }, [workoutLogs]);
+
+  useEffect(() => {
+    setStored("v166-workout-notes", workoutNotes);
+  }, [workoutNotes]);
+
+  useEffect(() => {
+    setStored("v166-prs", prs);
+  }, [prs]);
 
   const today = todayName();
   const phase = getPhase(week);
@@ -138,16 +176,15 @@ export default function Home() {
 
   const filteredExercises = exercises.filter((exercise) => {
     const matchesCategory = selectedFilter === "All" || exercise.category === selectedFilter;
-
     const search = exerciseSearch.toLowerCase().trim();
 
     const searchableText = [
       exercise.name,
       exercise.category,
       exercise.purpose,
-      ...exercise.cues,
-      ...exercise.mistakes,
-      ...exercise.substitutions
+      ...(exercise.cues ?? []),
+      ...(exercise.mistakes ?? []),
+      ...(exercise.substitutions ?? [])
     ]
       .join(" ")
       .toLowerCase();
@@ -189,9 +226,29 @@ export default function Home() {
     return sum + weights[event.type];
   }, 0);
 
+  const weeklyLogCount = Object.keys(workoutLogs).filter((key) =>
+    key.startsWith(`${week}-`)
+  ).length;
+
+  const latestPR = prs[0];
+
   function toggleExercise(day: string, exercise: string) {
     const key = `${week}-${day}-${exercise}`;
     setChecked((current) => ({ ...current, [key]: !current[key] }));
+  }
+
+  function updateWorkoutLog(key: string, value: string) {
+    setWorkoutLogs((current) => ({
+      ...current,
+      [key]: value
+    }));
+  }
+
+  function updateWorkoutNote(key: string, value: string) {
+    setWorkoutNotes((current) => ({
+      ...current,
+      [key]: value
+    }));
   }
 
   function toggleExerciseCard(exerciseName: string) {
@@ -281,13 +338,39 @@ export default function Home() {
     ]);
   }
 
+  function addPR() {
+    const exercise = prExercise || exercises[0]?.name || "Custom PR";
+
+    if (!prValue.trim()) {
+      return;
+    }
+
+    const newPR: PRRecord = {
+      id: crypto.randomUUID(),
+      date: new Date().toLocaleDateString("en-US"),
+      exercise,
+      value: prValue.trim(),
+      unit: prUnit,
+      note: prNote.trim()
+    };
+
+    setPrs((current) => [newPR, ...current]);
+
+    setPrValue("");
+    setPrNote("");
+  }
+
+  function deletePR(id: string) {
+    setPrs((current) => current.filter((pr) => pr.id !== id));
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
           <div className="logo">🏐</div>
           <div>
-            <h2>V16.5 TRACKER</h2>
+            <h2>V16.6 TRACKER</h2>
             <p>ATHLETE OPERATING SYSTEM</p>
           </div>
         </div>
@@ -355,12 +438,22 @@ export default function Home() {
 
           <div className="card">
             <h3>
-              <Target size={18} /> Goals
+              <Trophy size={18} /> PR Board
             </h3>
-            <p>□ 40+ inch vertical</p>
-            <p>□ 11&apos;6 approach touch</p>
-            <p>□ 20 pull-ups</p>
-            <p>□ No knee pain</p>
+
+            {latestPR ? (
+              <>
+                <h2>{latestPR.value}</h2>
+                <p className="muted">
+                  {latestPR.unit} on {latestPR.exercise}
+                </p>
+              </>
+            ) : (
+              <>
+                <h2>0</h2>
+                <p className="muted">No PRs logged yet.</p>
+              </>
+            )}
           </div>
         </section>
 
@@ -395,6 +488,7 @@ export default function Home() {
           <p>
             <strong>Progression:</strong> {phase.sets}
           </p>
+          <p className="muted">Workout logs this week: {weeklyLogCount}</p>
         </section>
 
         <section id="workouts" style={{ marginTop: 24 }}>
@@ -403,50 +497,75 @@ export default function Home() {
           </h2>
 
           <p className="muted">
-            Click an exercise name to jump to its cues in the Exercise Library.
+            Click an exercise name to jump to its cues. Log weight, reps, pain, speed, or notes under each movement.
           </p>
 
           <div className="workout-grid">
-            {workoutDays.map((day) => (
-              <div
-                key={day.day}
-                className={`panel day-card ${day.day === today ? "today" : ""}`}
-              >
-                <h3>{day.day}</h3>
-                <h4>{day.title}</h4>
-                <p className="muted">⏱ {day.minutes}</p>
+            {workoutDays.map((day) => {
+              const noteKey = `${week}-${day.day}-notes`;
 
-                {day.exercises.map((exercise) => {
-                  const key = `${week}-${day.day}-${exercise}`;
+              return (
+                <div
+                  key={day.day}
+                  className={`panel day-card ${day.day === today ? "today" : ""}`}
+                >
+                  <h3>{day.day}</h3>
+                  <h4>{day.title}</h4>
+                  <p className="muted">⏱ {day.minutes}</p>
 
-                  return (
-                    <label key={exercise} className="exercise-row">
-                      <input
-                        type="checkbox"
-                        checked={Boolean(checked[key])}
-                        onChange={() => toggleExercise(day.day, exercise)}
+                  {day.exercises.map((exercise) => {
+                    const key = `${week}-${day.day}-${exercise}`;
+                    const logKey = `${week}-${day.day}-${exercise}-log`;
+
+                    return (
+                      <div key={exercise} className="exercise-log-block">
+                        <label className="exercise-row">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(checked[key])}
+                            onChange={() => toggleExercise(day.day, exercise)}
+                          />
+
+                          <span>
+                            <button
+                              type="button"
+                              className="exercise-name-button"
+                              onClick={(event) => {
+                                event.preventDefault();
+                                openExerciseFromWorkout(exercise);
+                              }}
+                            >
+                              {exercise}
+                            </button>
+                            : {getPrescription(week, exercise)}
+                          </span>
+                        </label>
+
+                        <input
+                          className="exercise-log-input"
+                          value={workoutLogs[logKey] || ""}
+                          onChange={(event) => updateWorkoutLog(logKey, event.target.value)}
+                          placeholder="Log: weight x reps, jump height, pain level, speed..."
+                        />
+                      </div>
+                    );
+                  })}
+
+                  <div className="day-notes">
+                    <label>
+                      Day Notes
+                      <textarea
+                        value={workoutNotes[noteKey] || ""}
+                        onChange={(event) => updateWorkoutNote(noteKey, event.target.value)}
+                        placeholder="How did the workout feel? Knee pain? Shoulder pain? Energy? Explosiveness?"
                       />
-
-                      <span>
-                        <button
-                          type="button"
-                          className="exercise-name-button"
-                          onClick={(event) => {
-                            event.preventDefault();
-                            openExerciseFromWorkout(exercise);
-                          }}
-                        >
-                          {exercise}
-                        </button>
-                        : {getPrescription(week, exercise)}
-                      </span>
                     </label>
-                  );
-                })}
+                  </div>
 
-                <p className="muted">{day.notes}</p>
-              </div>
-            ))}
+                  <p className="muted">{day.notes}</p>
+                </div>
+              );
+            })}
           </div>
         </section>
 
@@ -528,6 +647,71 @@ export default function Home() {
         <section className="lower-grid" style={{ marginTop: 24 }}>
           <div className="panel">
             <h2>
+              <Trophy size={22} /> PR Tracker
+            </h2>
+
+            <div className="pr-form">
+              <select value={prExercise} onChange={(e) => setPrExercise(e.target.value)}>
+                <option value="">Select Exercise</option>
+                {exercises.map((exercise) => (
+                  <option key={exercise.name} value={exercise.name}>
+                    {exercise.name}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                value={prValue}
+                onChange={(e) => setPrValue(e.target.value)}
+                placeholder="PR value, ex: 225 x 5 or 34in"
+              />
+
+              <select value={prUnit} onChange={(e) => setPrUnit(e.target.value)}>
+                <option value="lbs">lbs</option>
+                <option value="reps">reps</option>
+                <option value="inches">inches</option>
+                <option value="seconds">seconds</option>
+                <option value="touch">touch</option>
+                <option value="notes">notes</option>
+              </select>
+
+              <input
+                value={prNote}
+                onChange={(e) => setPrNote(e.target.value)}
+                placeholder="Optional note"
+              />
+
+              <button onClick={addPR}>Add PR</button>
+            </div>
+
+            <div className="pr-list">
+              {prs.length === 0 && (
+                <p className="muted">No PRs yet. Tragic. Fixable, but tragic.</p>
+              )}
+
+              {prs.slice(0, 8).map((pr) => (
+                <div className="pr-card" key={pr.id}>
+                  <div>
+                    <strong>{pr.exercise}</strong>
+                    <p>
+                      {pr.value} {pr.unit}
+                    </p>
+                    <span className="muted">
+                      {pr.date}
+                      {pr.note ? ` • ${pr.note}` : ""}
+                    </span>
+                  </div>
+
+                  <button className="ghost danger-button" onClick={() => deletePR(pr.id)}>
+                    Delete
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="panel">
+            <h2>
               <HeartPulse size={22} /> AI Coach
             </h2>
 
@@ -539,7 +723,9 @@ export default function Home() {
               ))}
             </ul>
           </div>
+        </section>
 
+        <section className="lower-grid" style={{ marginTop: 24 }}>
           <div id="calendar" className="panel">
             <h2>
               <CalendarDays size={22} /> Calendar + Training Load
@@ -563,6 +749,19 @@ export default function Home() {
                 </div>
               ))}
             </div>
+          </div>
+
+          <div className="panel">
+            <h2>
+              <Target size={22} /> Training Goals
+            </h2>
+
+            <p>□ 40+ inch vertical</p>
+            <p>□ 11&apos;6 approach touch</p>
+            <p>□ 20 pull-ups</p>
+            <p>□ No knee pain</p>
+            <p>□ Stronger shoulder rotation</p>
+            <p>□ Faster approach and arm swing</p>
           </div>
         </section>
 
@@ -655,7 +854,7 @@ export default function Home() {
                       <div>
                         <h4>Coaching Cues</h4>
                         <ul>
-                          {exercise.cues.map((cue) => (
+                          {(exercise.cues ?? []).map((cue) => (
                             <li key={cue}>{cue}</li>
                           ))}
                         </ul>
@@ -664,7 +863,7 @@ export default function Home() {
                       <div>
                         <h4>Common Mistakes</h4>
                         <ul>
-                          {exercise.mistakes.map((mistake) => (
+                          {(exercise.mistakes ?? []).map((mistake) => (
                             <li key={mistake}>{mistake}</li>
                           ))}
                         </ul>
@@ -673,7 +872,7 @@ export default function Home() {
                       <div>
                         <h4>Substitutions</h4>
                         <ul>
-                          {exercise.substitutions.map((substitution) => (
+                          {(exercise.substitutions ?? []).map((substitution) => (
                             <li key={substitution}>{substitution}</li>
                           ))}
                         </ul>
@@ -704,13 +903,13 @@ export default function Home() {
 
         <section className="panel" style={{ marginTop: 24 }}>
           <h2>
-            <Trophy size={22} /> Version 16.5 Status
+            <Trophy size={22} /> Version 16.6 Status
           </h2>
 
           <p className="muted">
-            Exercise Library search, filters, expandable cards, and clickable workout exercise
-            names are now added. The app is becoming dangerously useful. We should all be
-            concerned.
+            Workout notes, exercise logs, and PR tracking are now added. The app is no longer just
+            a checklist. It can actually track training progress, which is rude because now it can
+            hold you accountable.
           </p>
         </section>
       </main>
