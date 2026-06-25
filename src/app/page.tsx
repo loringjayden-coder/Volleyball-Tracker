@@ -7,6 +7,7 @@ import {
   Dumbbell,
   HeartPulse,
   Library,
+  Search,
   Target,
   Trophy
 } from "lucide-react";
@@ -81,6 +82,13 @@ function makeDefaultEvents(): CalendarEvent[] {
   return events;
 }
 
+function normalizeText(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .trim();
+}
+
 export default function Home() {
   const [week, setWeek] = useState(1);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
@@ -88,6 +96,8 @@ export default function Home() {
   const [history, setHistory] = useState<StatEntry[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [selectedFilter, setSelectedFilter] = useState("All");
+  const [exerciseSearch, setExerciseSearch] = useState("");
+  const [expandedExercises, setExpandedExercises] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     setChecked(getStored("v15-checked", {}));
@@ -127,7 +137,24 @@ export default function Home() {
   const todayWorkout = workoutDays.find((day) => day.day === today);
 
   const filteredExercises = exercises.filter((exercise) => {
-    return selectedFilter === "All" || exercise.category === selectedFilter;
+    const matchesCategory = selectedFilter === "All" || exercise.category === selectedFilter;
+
+    const search = exerciseSearch.toLowerCase().trim();
+
+    const searchableText = [
+      exercise.name,
+      exercise.category,
+      exercise.purpose,
+      ...exercise.cues,
+      ...exercise.mistakes,
+      ...exercise.substitutions
+    ]
+      .join(" ")
+      .toLowerCase();
+
+    const matchesSearch = !search || searchableText.includes(search);
+
+    return matchesCategory && matchesSearch;
   });
 
   const calendarPreview = useMemo(() => {
@@ -167,6 +194,63 @@ export default function Home() {
     setChecked((current) => ({ ...current, [key]: !current[key] }));
   }
 
+  function toggleExerciseCard(exerciseName: string) {
+    setExpandedExercises((current) => ({
+      ...current,
+      [exerciseName]: !current[exerciseName]
+    }));
+  }
+
+  function expandAllVisibleExercises() {
+    const expanded = { ...expandedExercises };
+
+    filteredExercises.forEach((exercise) => {
+      expanded[exercise.name] = true;
+    });
+
+    setExpandedExercises(expanded);
+  }
+
+  function collapseAllExercises() {
+    setExpandedExercises({});
+  }
+
+  function openExerciseFromWorkout(workoutExercise: string) {
+    const workoutName = normalizeText(workoutExercise);
+
+    const match = exercises.find((exercise) => {
+      const libraryName = normalizeText(exercise.name);
+
+      return (
+        libraryName === workoutName ||
+        libraryName.includes(workoutName) ||
+        workoutName.includes(libraryName)
+      );
+    });
+
+    if (!match) {
+      setExerciseSearch(workoutExercise);
+      setSelectedFilter("All");
+
+      setTimeout(() => {
+        document.getElementById("library")?.scrollIntoView({ behavior: "smooth" });
+      }, 50);
+
+      return;
+    }
+
+    setSelectedFilter("All");
+    setExerciseSearch(match.name);
+    setExpandedExercises((current) => ({
+      ...current,
+      [match.name]: true
+    }));
+
+    setTimeout(() => {
+      document.getElementById("library")?.scrollIntoView({ behavior: "smooth" });
+    }, 50);
+  }
+
   function saveStats() {
     const entry = { ...stats, date: new Date().toLocaleDateString("en-US") };
     const newHistory = [...history, entry];
@@ -203,7 +287,7 @@ export default function Home() {
         <div className="brand">
           <div className="logo">🏐</div>
           <div>
-            <h2>V15 TRACKER</h2>
+            <h2>V16.5 TRACKER</h2>
             <p>ATHLETE OPERATING SYSTEM</p>
           </div>
         </div>
@@ -318,6 +402,10 @@ export default function Home() {
             <Dumbbell size={22} /> Weekly Workouts
           </h2>
 
+          <p className="muted">
+            Click an exercise name to jump to its cues in the Exercise Library.
+          </p>
+
           <div className="workout-grid">
             {workoutDays.map((day) => (
               <div
@@ -338,8 +426,19 @@ export default function Home() {
                         checked={Boolean(checked[key])}
                         onChange={() => toggleExercise(day.day, exercise)}
                       />
+
                       <span>
-                        {exercise}: {getPrescription(week, exercise)}
+                        <button
+                          type="button"
+                          className="exercise-name-button"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            openExerciseFromWorkout(exercise);
+                          }}
+                        >
+                          {exercise}
+                        </button>
+                        : {getPrescription(week, exercise)}
                       </span>
                     </label>
                   );
@@ -468,9 +567,41 @@ export default function Home() {
         </section>
 
         <section id="library" className="panel exercise-library">
-          <h2>
-            <Library size={22} /> Exercise Library
-          </h2>
+          <div className="library-header">
+            <div>
+              <h2>
+                <Library size={22} /> Exercise Library
+              </h2>
+              <p className="muted">
+                {filteredExercises.length} of {exercises.length} exercises shown
+              </p>
+            </div>
+
+            <div className="library-actions">
+              <button className="ghost" onClick={expandAllVisibleExercises}>
+                Expand Visible
+              </button>
+              <button className="ghost" onClick={collapseAllExercises}>
+                Collapse All
+              </button>
+            </div>
+          </div>
+
+          <div className="library-search">
+            <Search size={18} />
+            <input
+              type="text"
+              value={exerciseSearch}
+              onChange={(e) => setExerciseSearch(e.target.value)}
+              placeholder="Search exercises, cues, mistakes, knee, shoulder, jump..."
+            />
+
+            {exerciseSearch && (
+              <button className="ghost" onClick={() => setExerciseSearch("")}>
+                Clear
+              </button>
+            )}
+          </div>
 
           <div className="filter-row">
             {["All", "Lower Body", "Upper Body", "Plyometrics", "Core", "Mobility", "Rehab"].map(
@@ -486,71 +617,100 @@ export default function Home() {
             )}
           </div>
 
+          {filteredExercises.length === 0 && (
+            <div className="empty-state">
+              <h3>No exercises found.</h3>
+              <p className="muted">
+                Try searching something like jump, knee, shoulder, core, mobility, pull, or squat.
+              </p>
+            </div>
+          )}
+
           <div className="exercise-grid">
-            {filteredExercises.map((exercise) => (
-              <div key={exercise.name} className="exercise-card exercise-card-detailed">
-                <div className="exercise-icon">{exercise.icon}</div>
+            {filteredExercises.map((exercise) => {
+              const isExpanded = Boolean(expandedExercises[exercise.name]);
 
-                <div className="exercise-content">
-                  <div className="exercise-heading">
-                    <h3>{exercise.name}</h3>
-                    <span className="exercise-category">{exercise.category}</span>
-                  </div>
+              return (
+                <div
+                  key={exercise.name}
+                  className={`exercise-card exercise-card-detailed ${
+                    isExpanded ? "expanded" : ""
+                  }`}
+                >
+                  <div className="exercise-card-top">
+                    <div className="exercise-icon">{exercise.icon}</div>
 
-                  <p className="muted">{exercise.purpose}</p>
+                    <div className="exercise-content">
+                      <div className="exercise-heading">
+                        <h3>{exercise.name}</h3>
+                        <span className="exercise-category">{exercise.category}</span>
+                      </div>
 
-                  <div className="exercise-details">
-                    <div>
-                      <h4>Coaching Cues</h4>
-                      <ul>
-                        {exercise.cues.map((cue) => (
-                          <li key={cue}>{cue}</li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div>
-                      <h4>Common Mistakes</h4>
-                      <ul>
-                        {exercise.mistakes.map((mistake) => (
-                          <li key={mistake}>{mistake}</li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div>
-                      <h4>Substitutions</h4>
-                      <ul>
-                        {exercise.substitutions.map((substitution) => (
-                          <li key={substitution}>{substitution}</li>
-                        ))}
-                      </ul>
+                      <p className="muted">{exercise.purpose}</p>
                     </div>
                   </div>
 
-                  <a
-                    className="video-link"
-                    href={exercise.video}
-                    target="_blank"
-                    rel="noreferrer"
+                  {isExpanded && (
+                    <div className="exercise-details">
+                      <div>
+                        <h4>Coaching Cues</h4>
+                        <ul>
+                          {exercise.cues.map((cue) => (
+                            <li key={cue}>{cue}</li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div>
+                        <h4>Common Mistakes</h4>
+                        <ul>
+                          {exercise.mistakes.map((mistake) => (
+                            <li key={mistake}>{mistake}</li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div>
+                        <h4>Substitutions</h4>
+                        <ul>
+                          {exercise.substitutions.map((substitution) => (
+                            <li key={substitution}>{substitution}</li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <a
+                        className="video-link"
+                        href={exercise.video}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Watch form video →
+                      </a>
+                    </div>
+                  )}
+
+                  <button
+                    className="view-details-button"
+                    onClick={() => toggleExerciseCard(exercise.name)}
                   >
-                    Watch form video →
-                  </a>
+                    {isExpanded ? "Hide Details" : "View Details"}
+                  </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 
         <section className="panel" style={{ marginTop: 24 }}>
           <h2>
-            <Trophy size={22} /> Version 16 Status
+            <Trophy size={22} /> Version 16.5 Status
           </h2>
 
           <p className="muted">
-            You now have a cleaner mobile layout and a stronger exercise library.
-            The next serious upgrades would be Supabase login, cloud saving, PWA install,
-            nutrition tracking, and coach export reports.
+            Exercise Library search, filters, expandable cards, and clickable workout exercise
+            names are now added. The app is becoming dangerously useful. We should all be
+            concerned.
           </p>
         </section>
       </main>
