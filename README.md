@@ -1,48 +1,33 @@
-# Volleyball Tracker V15 - Next.js Version
+# Volleyball Tracker
 
-This is Version 15 of the Volleyball Athlete Operating System.
+A Next.js and TypeScript athlete tracking app built for volleyball training, recovery, stats, and performance monitoring.
 
-## What this version includes
+## Live Demo
 
-- Next.js app structure
-- TypeScript
-- Modern dashboard UI
-- Workout tracker
-- Recovery AI coach logic
-- Stats history with Recharts
-- Calendar / training load preview
+https://vercel.com/loringjayden-coders-projects/volleyball-tracker
+
+## Features
+
+- 20-week volleyball workout tracker
+- Weekly training phases
+- Workout completion tracking
+- Recovery score
+- AI-style recovery recommendations
+- Stats history
+- Progress graphs
 - Exercise library
+- Calendar and training load preview
 - LocalStorage saving
-- Modular components and data files
 
-## How to run it
+## Tech Stack
 
-You need Node.js installed.
+- Next.js
+- TypeScript
+- React
+- Recharts
+- CSS
+- LocalStorage
 
-1. Open this folder in VS Code.
-2. Open the terminal.
-3. Run:
+## Purpose
 
-```bash
-npm install
-npm run dev
-```
-
-4. Open the local link shown in the terminal, usually:
-
-```text
-http://localhost:3000
-```
-
-## Important
-
-This does NOT use Live Server anymore.
-This is a real Next.js app, so use `npm run dev`.
-
-If PowerShell blocks npm scripts, run this in PowerShell as Administrator:
-
-```bash
-Set-ExecutionPolicy RemoteSigned
-```
-
-Then try again.
+This project was built to help track volleyball performance, jump training, recovery, and consistency while also serving as a full-stack-ready portfolio project.
