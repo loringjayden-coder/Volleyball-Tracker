@@ -111,6 +111,7 @@ export default function Home() {
   const status = recoveryStatus(recovery);
 
   const totalExercises = workoutDays.reduce((sum, day) => sum + day.exercises.length, 0);
+
   const completedExercises = workoutDays.reduce((sum, day) => {
     return (
       sum +
@@ -137,6 +138,7 @@ export default function Home() {
       const date = new Date(start);
       date.setDate(start.getDate() + i);
       const iso = date.toISOString().slice(0, 10);
+
       days.push({
         iso,
         day: date.toLocaleDateString("en-US", { weekday: "short" }),
@@ -149,7 +151,14 @@ export default function Home() {
   }, [calendarEvents]);
 
   const trainingLoad = calendarEvents.reduce((sum, event) => {
-    const weights = { workout: 3, practice: 4, game: 5, recovery: 1, rest: 0 };
+    const weights = {
+      workout: 3,
+      practice: 4,
+      game: 5,
+      recovery: 1,
+      rest: 0
+    };
+
     return sum + weights[event.type];
   }, 0);
 
@@ -161,6 +170,7 @@ export default function Home() {
   function saveStats() {
     const entry = { ...stats, date: new Date().toLocaleDateString("en-US") };
     const newHistory = [...history, entry];
+
     setStats(entry);
     setHistory(newHistory);
     setStored("v15-latest-stats", entry);
@@ -219,41 +229,52 @@ export default function Home() {
             <h1>Welcome back, Jayden 👋</h1>
             <p>Next.js + TypeScript Volleyball Athlete Tracker</p>
           </div>
+
           <div className="avatar">J</div>
         </header>
 
         <section id="dashboard" className="grid-4">
           <div className="card">
-            <h3><CalendarDays size={18} /> Today</h3>
+            <h3>
+              <CalendarDays size={18} /> Today
+            </h3>
             <h2>{today}</h2>
             <p className="muted">{todayWorkout?.title}</p>
           </div>
 
           <div className="card">
-            <h3><HeartPulse size={18} /> Recovery</h3>
+            <h3>
+              <HeartPulse size={18} /> Recovery
+            </h3>
             <h2>{recovery}%</h2>
             <span className="pill">{status.label}</span>
             <p className="muted">{status.message}</p>
+
             <div className="progress-bar">
               <div className="progress-fill" style={{ width: `${recovery}%` }} />
             </div>
           </div>
 
           <div className="card">
-            <h3><BarChart3 size={18} /> Weekly Progress</h3>
+            <h3>
+              <BarChart3 size={18} /> Weekly Progress
+            </h3>
             <h2>{progress}%</h2>
             <p className="muted">
               {completedExercises} / {totalExercises} exercises completed
             </p>
+
             <div className="progress-bar">
               <div className="progress-fill" style={{ width: `${progress}%` }} />
             </div>
           </div>
 
           <div className="card">
-            <h3><Target size={18} /> Goals</h3>
+            <h3>
+              <Target size={18} /> Goals
+            </h3>
             <p>□ 40+ inch vertical</p>
-            <p>□ 11'6 approach touch</p>
+            <p>□ 11&apos;6 approach touch</p>
             <p>□ 20 pull-ups</p>
             <p>□ No knee pain</p>
           </div>
@@ -281,13 +302,21 @@ export default function Home() {
 
         <section className="panel">
           <h2>{phase.name}</h2>
-          <p><strong>Focus:</strong> {phase.focus}</p>
-          <p><strong>Intensity:</strong> {phase.intensity}</p>
-          <p><strong>Progression:</strong> {phase.sets}</p>
+          <p>
+            <strong>Focus:</strong> {phase.focus}
+          </p>
+          <p>
+            <strong>Intensity:</strong> {phase.intensity}
+          </p>
+          <p>
+            <strong>Progression:</strong> {phase.sets}
+          </p>
         </section>
 
         <section id="workouts" style={{ marginTop: 24 }}>
-          <h2><Dumbbell size={22} /> Weekly Workouts</h2>
+          <h2>
+            <Dumbbell size={22} /> Weekly Workouts
+          </h2>
 
           <div className="workout-grid">
             {workoutDays.map((day) => (
@@ -301,6 +330,7 @@ export default function Home() {
 
                 {day.exercises.map((exercise) => {
                   const key = `${week}-${day.day}-${exercise}`;
+
                   return (
                     <label key={exercise} className="exercise-row">
                       <input
@@ -323,7 +353,9 @@ export default function Home() {
 
         <section id="stats" className="lower-grid">
           <div className="panel">
-            <h2><Activity size={22} /> Performance Stats</h2>
+            <h2>
+              <Activity size={22} /> Performance Stats
+            </h2>
 
             <div className="stats-grid">
               {[
@@ -355,7 +387,9 @@ export default function Home() {
 
             <div className="button-row">
               <button onClick={saveStats}>Save Stats Entry</button>
-              <button className="ghost" onClick={clearStats}>Clear History</button>
+              <button className="ghost" onClick={clearStats}>
+                Clear History
+              </button>
             </div>
           </div>
 
@@ -371,13 +405,19 @@ export default function Home() {
               ].map(([key, label]) => (
                 <div className="chart-card" key={key}>
                   <h3>{label}</h3>
+
                   <ResponsiveContainer width="100%" height={180}>
                     <LineChart data={history}>
                       <CartesianGrid stroke="rgba(255,255,255,.08)" />
                       <XAxis dataKey="date" stroke="#a8b0bd" />
                       <YAxis stroke="#a8b0bd" />
                       <Tooltip />
-                      <Line type="monotone" dataKey={key} stroke="#ffc400" strokeWidth={2} />
+                      <Line
+                        type="monotone"
+                        dataKey={key}
+                        stroke="#ffc400"
+                        strokeWidth={2}
+                      />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -388,23 +428,34 @@ export default function Home() {
 
         <section className="lower-grid" style={{ marginTop: 24 }}>
           <div className="panel">
-            <h2><HeartPulse size={22} /> AI Coach</h2>
+            <h2>
+              <HeartPulse size={22} /> AI Coach
+            </h2>
+
             <ul>
               {coachRecommendations(stats).map((item) => (
-                <li key={item} className="muted">{item}</li>
+                <li key={item} className="muted">
+                  {item}
+                </li>
               ))}
             </ul>
           </div>
 
           <div id="calendar" className="panel">
-            <h2><CalendarDays size={22} /> Calendar + Training Load</h2>
+            <h2>
+              <CalendarDays size={22} /> Calendar + Training Load
+            </h2>
+
             <p className="muted">Training Load: {trainingLoad}</p>
             <button onClick={addGame}>Add Game Today</button>
 
             <div className="calendar-preview" style={{ marginTop: 16 }}>
               {calendarPreview.map((day) => (
                 <div className="calendar-day" key={day.iso}>
-                  <strong>{day.day} {day.number}</strong>
+                  <strong>
+                    {day.day} {day.number}
+                  </strong>
+
                   {day.events.slice(0, 2).map((event) => (
                     <span key={event.id} className={`event-chip ${event.type}`}>
                       {event.title}
@@ -417,28 +468,74 @@ export default function Home() {
         </section>
 
         <section id="library" className="panel exercise-library">
-          <h2><Library size={22} /> Exercise Library</h2>
+          <h2>
+            <Library size={22} /> Exercise Library
+          </h2>
 
           <div className="filter-row">
-            {["All", "Lower Body", "Upper Body", "Plyometrics", "Core", "Mobility", "Rehab"].map((filter) => (
-              <button
-                key={filter}
-                className={selectedFilter === filter ? "" : "ghost"}
-                onClick={() => setSelectedFilter(filter)}
-              >
-                {filter}
-              </button>
-            ))}
+            {["All", "Lower Body", "Upper Body", "Plyometrics", "Core", "Mobility", "Rehab"].map(
+              (filter) => (
+                <button
+                  key={filter}
+                  className={selectedFilter === filter ? "" : "ghost"}
+                  onClick={() => setSelectedFilter(filter)}
+                >
+                  {filter}
+                </button>
+              )
+            )}
           </div>
 
           <div className="exercise-grid">
             {filteredExercises.map((exercise) => (
-              <div key={exercise.name} className="exercise-card">
+              <div key={exercise.name} className="exercise-card exercise-card-detailed">
                 <div className="exercise-icon">{exercise.icon}</div>
-                <div>
-                  <h3>{exercise.name}</h3>
+
+                <div className="exercise-content">
+                  <div className="exercise-heading">
+                    <h3>{exercise.name}</h3>
+                    <span className="exercise-category">{exercise.category}</span>
+                  </div>
+
                   <p className="muted">{exercise.purpose}</p>
-                  <a href={exercise.video} target="_blank">Watch form video</a>
+
+                  <div className="exercise-details">
+                    <div>
+                      <h4>Coaching Cues</h4>
+                      <ul>
+                        {exercise.cues.map((cue) => (
+                          <li key={cue}>{cue}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h4>Common Mistakes</h4>
+                      <ul>
+                        {exercise.mistakes.map((mistake) => (
+                          <li key={mistake}>{mistake}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h4>Substitutions</h4>
+                      <ul>
+                        {exercise.substitutions.map((substitution) => (
+                          <li key={substitution}>{substitution}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+
+                  <a
+                    className="video-link"
+                    href={exercise.video}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Watch form video →
+                  </a>
                 </div>
               </div>
             ))}
@@ -446,9 +543,12 @@ export default function Home() {
         </section>
 
         <section className="panel" style={{ marginTop: 24 }}>
-          <h2><Trophy size={22} /> Version 15 Status</h2>
+          <h2>
+            <Trophy size={22} /> Version 16 Status
+          </h2>
+
           <p className="muted">
-            You now have a real Next.js + TypeScript athlete tracker foundation.
+            You now have a cleaner mobile layout and a stronger exercise library.
             The next serious upgrades would be Supabase login, cloud saving, PWA install,
             nutrition tracking, and coach export reports.
           </p>
